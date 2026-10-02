@@ -1164,6 +1164,11 @@ func stepInstallNvim(m *Model) error {
 			err)
 	}
 
+	// Deploy the repository-owned Lazygit theme even if the binary was present already.
+	if err := deployLazygitTheme(repoDir, homeDir, lazygitPlatform(m), os.Getenv("XDG_CONFIG_HOME")); err != nil {
+		return wrapStepError("nvim", "Install Neovim", "Failed to configure Lazygit theme", err)
+	}
+
 	// Install Claude Code CLI (optional, don't fail on error)
 	// Skip on Termux - Claude Code doesn't support Android
 	if !m.SystemInfo.IsTermux {
