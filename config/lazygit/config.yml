@@ -1,0 +1,32 @@
+# Gentleman blue palette, derived from the repo's Pi gentleman-blue theme.
+# This theme-only file does not merge with a pre-existing user config.
+# Home Manager refuses to replace an unmanaged config.yml; merge manually
+# before activation if you need to retain unrelated settings.
+gui:
+  theme:
+    activeBorderColor:
+      - '#5CE1FF'
+      - bold
+    inactiveBorderColor:
+      - '#4A5578'
+    searchingActiveBorderColor:
+      - '#FFD23D'
+      - bold
+    optionsTextColor:
+      - '#347AFF'
+    selectedLineBgColor:
+      - '#1C2C54'
+    inactiveViewSelectedLineBgColor:
+      - '#10182E'
+    cherryPickedCommitFgColor:
+      - '#05070F'
+    cherryPickedCommitBgColor:
+      - '#5CE1FF'
+    markedBaseCommitFgColor:
+      - '#05070F'
+    markedBaseCommitBgColor:
+      - '#FFD23D'
+    unstagedChangesColor:
+      - '#FF3D81'
+    defaultFgColor:
+      - '#DBE9FF'

@@ -126,6 +126,14 @@
                 nerd-fonts.iosevka-term
               ];
 
+              # This flake supports macOS only. Without XDG_CONFIG_HOME, Lazygit
+              # reads ~/Library/Application Support/lazygit/config.yml. Home Manager
+              # refuses to replace an existing unmanaged file (no force/backup option
+              # here): move or merge that file manually before activation. If a shell
+              # sets XDG_CONFIG_HOME, Lazygit instead reads $XDG_CONFIG_HOME/lazygit;
+              # this static Home Manager target does not follow that override.
+              home.file."Library/Application Support/lazygit/config.yml".source = ./config/lazygit/config.yml;
+
               # Enable programs explicitly (critical for binaries to appear)
               # All program enables are centralized here
               programs.neovim.enable = false;
