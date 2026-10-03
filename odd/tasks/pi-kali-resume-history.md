@@ -1,0 +1,20 @@
+# Pi Kali resume history
+
+## Objective and scope
+Show the dots-owned Kali startup widget only when the active Pi session has no visible conversation history. A resumed session with history must never install the logo before typing. Preserve fresh-session rendering and existing agent-start/shutdown cleanup.
+
+Scope: `pi/extensions/kali-widget.ts`, `pi/tests/kali-widget.test.ts`. No Gentle Shell changes or PR. User authorized the fix, subsequent installed deployment, and now one cohesive commit plus push to `origin/wahh`.
+
+## Findings
+`session_start` unconditionally installs the widget. Event reason alone is insufficient: CLI continuation can use startup. Check the active session's history through public SessionManager APIs; do not mistake metadata for a conversation or inspect unrelated tree branches.
+
+## Tasks
+- [x] KRH-1 (implemented and tests passed; commit authorized): Add deterministic regression tests (observe RED), implement history-aware startup visibility, and run focused plus related tests. Route: delegated worker; two non-trivial edit surfaces. Acceptance: resumed/startup/reload/fork sessions with history hide logo; fresh/metadata-only active sessions preserve it; stale widget cleanup covered.
+- [x] KRH-2 (verified and installed; live UI not independently observed): Assess native review, independently verify as required, and record deployment/visual limits. Route: native assessment and delegated verifier when required. Acceptance: checks reported honestly and review authority respected.
+
+## Verification and delivery
+Bun runner confirmed. Observed RED: 29 pass / 15 fail before implementation. GREEN: widget 45 pass / 0 fail, 6243 assertions; installer 73 pass / 0 fail, 335 assertions. `git diff --check` clean. Diff: 130 additions / 4 deletions. LSP inferred-project diagnostics cannot resolve Pi/Bun/Node packages; authoritative TypeScript check unavailable in current repo configuration. Native reliability review approved: `review-f070f5e24c073c7c`, medium, 134 authored lines; exact acknowledgement succeeded and authority burned for source/test candidate, task document excluded. ASSESS failed because untracked declaration was required; returned unassessable/high-equivalent independent verification plan. Independent verifier reran `bun test ./pi/tests`: 118 pass / 0 fail, exit 0; focused widget rerun: 45 pass / 0 fail; `git diff --check`: exit 0. No bounded correctness findings. Installed public declarations support SessionEntry discriminated properties; getBranch default follows current leaf. Authoritative TypeScript compilation and live UI remain unavailable/not performed. No native approval is claimed for installation or live UI. Read-only explorer confirms installed managed copy has the same lifecycle defect. After explicit user authorization, deployed source atomically to `~/.pi/agent/extensions/kali-widget.ts`, preserving managed header and permissions. Backup: `kali-widget.ts.backup-20261003-133847`. Byte readback matches header + repository source exactly; source SHA-256 `9a35c6b864a49eba4ab87b1deb9019b74c7b5ae9159bed035118a35403c5bde2`. No Shell configuration changes.
+Forecast: under 200 authored diff lines; delivery strategy ask-on-risk. User authorized work-unit commit `fix(pi): hide Kali logo for sessions with history` and push to `origin/wahh`. The commit includes this document, widget and tests; its identity is recoverable through `git log --all --grep='fix(pi): hide Kali logo for sessions with history'`. Exact post-commit/push hash is recorded in the Engram feature mirror to avoid a self-referential commit. RDD on per `gentle-ai review mode status`.
+
+## Next step
+Repository fix, independent verification and authorized installed deployment complete. Reload Pi with `/reload` or restart; visually verify resumed history hides the logo immediately and a fresh empty session preserves it. User responded positively after deployment; live UI was not independently observed. Commit and push are authorized; record exact delivery identity and remote verification in the feature mirror after delivery. Authoritative TypeScript compilation remains unavailable.

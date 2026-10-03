@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import kaliWidget, { KALI_WIDGET_KEY, renderKaliLogo } from "../extensions/kali-widget";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 
@@ -12,8 +12,15 @@ function harness(mode = "tui", hasUI = true) {
   const handlers = new Map<string, Handler>();
   const widgets = new Map<string, Factory>();
   const calls: { key: string; content: Factory | undefined; placement?: string }[] = [];
+  const branch: SessionEntry[] = [];
   const ctx = {
     mode, hasUI,
+    sessionManager: {
+      getBranch: () => branch,
+      getEntries() { throw new Error("Unrelated branches must not affect startup"); },
+      getTree() { throw new Error("The entire session tree must not affect startup"); },
+      buildSessionProjection() { throw new Error("Model context can omit visible history"); },
+    },
     ui: {
       setWidget(key: string, content: Factory | undefined, options?: { placement: string }) {
         calls.push({ key, content, placement: options?.placement });
@@ -26,9 +33,9 @@ function harness(mode = "tui", hasUI = true) {
   const api = {
     on(name: string, handler: Handler) { handlers.set(name, handler); },
   } as unknown as ExtensionAPI;
-  const emit = (name: string) => handlers.get(name)?.({}, ctx);
+  const emit = (name: string, reason = "startup") => handlers.get(name)?.({ reason }, ctx);
   kaliWidget(api);
-  return { ctx, api, emit, widgets, calls };
+  return { ctx, api, emit, widgets, calls, branch };
 }
 
 const sourceArt = readFileSync(new URL("../../nvim/lua/plugins/ui.lua", import.meta.url), "utf8")
@@ -184,7 +191,107 @@ describe("responsive artwork", () => {
   });
 });
 
+// Only fields consumed by the visibility predicate matter in these raw-entry fixtures.
+function entry(value: object): SessionEntry {
+  return { id: "entry", parentId: null, timestamp: "2026-01-01T00:00:00Z", ...value } as SessionEntry;
+}
+
+const userEntry = entry({ type: "message", message: { role: "user", content: "Hello", timestamp: 0 } });
+
+const visibleHistory = [
+  ["user", userEntry],
+  ["assistant", entry({ type: "message", message: { role: "assistant", content: [] } })],
+  ["tool result", entry({ type: "message", message: { role: "toolResult", content: [] } })],
+  ["bash execution", entry({ type: "message", message: { role: "bashExecution", excludeFromContext: true } })],
+  ["displayed custom role", entry({ type: "message", message: { role: "custom", display: true } })],
+  ["displayed custom entry", entry({ type: "custom_message", display: true, content: "Notice" })],
+  ["compaction", entry({ type: "compaction", summary: "Earlier work", firstKeptEntryId: "entry", tokensBefore: 100 })],
+  ["branch summary", entry({ type: "branch_summary", summary: "Other work", fromId: "other" })],
+] as const;
+
+const metadata = [
+  entry({ type: "model_change", provider: "test", modelId: "test" }),
+  entry({ type: "thinking_level_change", thinkingLevel: "off" }),
+  entry({ type: "session_info", name: "Named empty session" }),
+  entry({ type: "label", targetId: "entry", label: "bookmark" }),
+  entry({ type: "usage", kind: "cache_warm" }),
+  entry({ type: "custom", customType: "state", data: {} }),
+  entry({ type: "context_edit", targetId: "other", replacement: null }),
+  entry({ type: "message", message: { role: "system", content: "Prompt", timestamp: 0 } }),
+  entry({ type: "message", message: { role: "custom", display: false } }),
+  entry({ type: "custom_message", display: false, content: "Hidden context" }),
+];
+
 describe("public widget lifecycle", () => {
+  test.each(["startup", "resume", "reload", "fork"])(
+    "hides conversation history on %s, without waiting for agent_start", (reason) => {
+      const h = harness();
+      h.branch.push(userEntry);
+      h.emit("session_start", reason);
+      expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(false);
+      expect(h.calls).toEqual([{ key: KALI_WIDGET_KEY, content: undefined, placement: undefined }]);
+      h.emit("agent_start");
+      h.emit("session_shutdown");
+      expect(h.calls).toHaveLength(1);
+    },
+  );
+
+  test.each(visibleHistory)("hides with active %s history", (_label, history) => {
+    const h = harness();
+    h.branch.push(history);
+    h.emit("session_start");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(false);
+  });
+
+  test.each(["startup", "resume", "reload", "fork"])(
+    "shows metadata/system/hidden-custom-only active branch on %s", (reason) => {
+      const h = harness();
+      h.branch.push(...metadata);
+      h.emit("session_start", reason);
+      expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(true);
+    },
+  );
+
+  test("an empty active branch ignores conversation on abandoned branches", () => {
+    const h = harness();
+    Object.assign(h.ctx.sessionManager, {
+      getEntries: () => [userEntry],
+      getTree: () => [{ entry: userEntry, children: [] }],
+    });
+    h.emit("session_start", "fork");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(true);
+  });
+
+  test("raw visible message remains history even if model context omits it", () => {
+    const h = harness();
+    h.branch.push(userEntry, entry({ type: "context_edit", targetId: userEntry.id, replacement: null }));
+    h.emit("session_start");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(false);
+  });
+
+  test("repeated startup clears a stale logo and later empty branch displays again", () => {
+    const h = harness();
+    h.emit("session_start");
+    h.branch.push(userEntry);
+    h.emit("session_start", "resume");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(false);
+    h.emit("session_shutdown");
+    expect(h.calls).toHaveLength(2);
+    h.branch.length = 0;
+    h.emit("session_start", "fork");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(true);
+  });
+
+  test("new runtime clears a stale keyed widget even before it installs anything", () => {
+    const h = harness();
+    h.emit("session_start");
+    kaliWidget(h.api);
+    h.branch.push(userEntry);
+    h.emit("session_start", "reload");
+    expect(h.widgets.has(KALI_WIDGET_KEY)).toBe(false);
+    expect(h.calls.at(-1)).toMatchObject({ key: KALI_WIDGET_KEY, content: undefined });
+  });
+
   test("installs only its uniquely keyed above-editor widget at startup", () => {
     const h = harness();
     expect(h.calls).toHaveLength(0);
@@ -197,6 +304,9 @@ describe("public widget lifecycle", () => {
   test.each([["rpc", true], ["json", false], ["print", false], ["tui", false]])(
     "does not touch terminal UI in %s (hasUI=%s)", (mode, hasUI) => {
       const h = harness(mode, hasUI);
+      Object.assign(h.ctx.sessionManager, {
+        getBranch() { throw new Error("Terminal-only history check must be guarded"); },
+      });
       h.emit("session_start");
       h.emit("agent_start");
       h.emit("session_shutdown");

@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 
 export const KALI_WIDGET_KEY = "gentleman.dots.kali-startup";
@@ -117,6 +117,22 @@ export default function kaliWidget(pi: ExtensionAPI): void {
   let installed = false;
   pi.on("session_start", (_event: unknown, ctx: ExtensionContext) => {
     if (ctx.mode !== "tui" || !ctx.hasUI) return;
+    // Inspect raw active history: model context edits can omit messages still in the UI.
+    // Metadata and hidden custom messages alone do not make a conversation.
+    const hasHistory = ctx.sessionManager.getBranch().some((entry: SessionEntry) => {
+      if (entry.type === "message") {
+        const message = entry.message;
+        return message.role !== "system" && (message.role !== "custom" || message.display);
+      }
+      return entry.type === "compaction" || entry.type === "branch_summary"
+        || (entry.type === "custom_message" && entry.display);
+    });
+    if (hasHistory) {
+      // Also clear a stale widget left by a previous session or extension runtime.
+      ctx.ui.setWidget(KALI_WIDGET_KEY, undefined);
+      installed = false;
+      return;
+    }
     ctx.ui.setWidget(KALI_WIDGET_KEY, createWidget, { placement: "aboveEditor" });
     installed = true;
   });
