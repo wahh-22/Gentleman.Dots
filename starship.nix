@@ -61,7 +61,7 @@ let
 
   gentlemanBluePalette = {
     text = "#DBE9FF";
-    red = "#FF3D81";
+    red = "#FF6B7A";
     green = "#4DFF88";
     yellow = "#FFD23D";
     blue = "#347AFF";
@@ -73,7 +73,7 @@ let
     overlay0 = "#1C2C54";
     rosewater = "#5CE1FF";
     flamingo = "#7C5CFF";
-    maroon = "#FF3D81";
+    maroon = "#FF6B7A";
     lavender = "#7C5CFF";
     subtext1 = "#7890BD";
     overlay2 = "#4A5578";

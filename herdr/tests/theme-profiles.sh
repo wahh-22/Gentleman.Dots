@@ -51,7 +51,10 @@ assert_contains "$PROFILE" 'panel_bg = "#05070F"' 'Herdr uses the Night City bac
 assert_contains "$PROFILE" 'accent = "#347AFF"' 'Herdr uses electric blue as its accent'
 assert_contains "$PROFILE" 'text = "#DBE9FF"' 'Herdr uses the Night City foreground'
 assert_contains "$PROFILE" 'green = "#4DFF88"' 'Herdr preserves semantic success green'
-assert_contains "$PROFILE" 'red = "#FF3D81"' 'Herdr preserves semantic error red'
+assert_contains "$PROFILE" 'red = "#FF6B7A"' 'Herdr preserves semantic error red'
+assert_contains "$PROFILE" 'sidebar_bg = "#070B1A"' 'Herdr sidebar uses the Night City surface, not One Dark'
+assert_contains "$PROFILE" 'active_row_bg = "#10182E"' 'Herdr active row uses the Pi user-message surface'
+assert_contains "$PROFILE" 'selection_bg = "#1C2C54"' 'Herdr selection matches Pi selectedBg'
 
 mkdir -p "$CONFIG_DIR/profiles" "$BIN_DIR"
 cp "$REPO/herdr/config-base.toml" "$CONFIG_DIR/config-base.toml"

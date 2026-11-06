@@ -8,7 +8,7 @@ set -l blue "#347AFF"
 set -l cyan "#5CE1FF"
 set -l violet "#7C5CFF"
 set -l green "#4DFF88"
-set -l red "#FF3D81"
+set -l red "#FF6B7A"
 set -l orange "#FF9F1C"
 
 # Syntax highlighting colors.

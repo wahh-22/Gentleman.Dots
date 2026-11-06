@@ -156,7 +156,7 @@ parent = "default"
 [colors]
 AlertInfo = "#5CE1FF"
 AlertWarn = "#FFD23D"
-AlertError = "#FF3D81"
+AlertError = "#FF6B7A"
 Annotation = "#FF9F1C"
 Base = "#DBE9FF"
 Guidance = "#4DFF88"
