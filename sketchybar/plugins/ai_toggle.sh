@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Toggle visibility of OpenAI + OpenCode Go quota panels (Claude and Copilot stay visible)
+# Toggle visibility of OpenAI + OpenCode Go quota panels (Claude stays visible)
 # State persists across sketchybar reloads via cache file
 # ai_hidden_gap spacer keeps separation correct while hidden
 

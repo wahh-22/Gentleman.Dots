@@ -123,7 +123,7 @@ sketchybar --add item front_app left \
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # AI QUOTA PANELS (left side, next to app names - all providers grouped here)
-# Visual order (left to right): Copilot | Claude | OpenAI | OpenCode Go
+# Visual order (left to right): Claude | OpenAI | OpenCode Go
 # ─────────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -169,32 +169,7 @@ sketchybar --add item opencode_quota_weekly left \
   label.width=28 \
   label.align=right \
   background.drawing=off \
-  update_freq=60 \
-  script="$PLUGIN_DIR/ai_quota.sh opencode-go weekly" \
   click_script="$PLUGIN_DIR/ai_quota.sh opencode-go weekly click"
-
-# ─────────────────────────────────────────────────────────────────────────────────
-# COPILOT QUOTA
-# ─────────────────────────────────────────────────────────────────────────────────
-sketchybar --add item copilot_quota left \
-  --set copilot_quota \
-  icon="" \
-  icon.font="IosevkaTerm NF:Bold:14.0" \
-  icon.color=$PRIMARY \
-  icon.padding_left=6 \
-  icon.padding_right=2 \
-  label.padding_right=6 \
-  label.width=40 \
-  label.align=right \
-  scroll_texts=off \
-  background.color=$ISLAND_BG \
-  background.border_color=$GLOW_BLUE \
-  background.border_width=1 \
-  background.corner_radius=0 \
-  background.height=24 \
-  update_freq=60 \
-  script="$PLUGIN_DIR/ai_quota.sh copilot" \
-  click_script="$PLUGIN_DIR/ai_quota.sh copilot click"
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # CLAUDE QUOTA
@@ -284,8 +259,6 @@ sketchybar --add item openai_quota_weekly left \
   label.width=28 \
   label.align=right \
   background.drawing=off \
-  update_freq=60 \
-  script="$PLUGIN_DIR/ai_quota.sh openai weekly" \
   click_script="$PLUGIN_DIR/ai_quota.sh openai weekly click"
 
 # Spacer between provider boxes
@@ -345,7 +318,7 @@ sketchybar --move openai_quota_separator after openai_quota
 sketchybar --move openai_quota_weekly after openai_quota_separator
 sketchybar --move opencode_quota_separator after opencode_quota
 sketchybar --move opencode_quota_weekly after opencode_quota_separator
-# Box order (left to right): Copilot | Claude | gap | OpenAI | gap | OpenCode Go
+# Box order (left to right): Claude | gap | OpenAI | gap | OpenCode Go
 # Move OpenCode Go block to the end (it was added first so it starts leftmost)
 sketchybar --move opencode_quota after openai_quota_weekly
 sketchybar --move opencode_quota_separator after opencode_quota
