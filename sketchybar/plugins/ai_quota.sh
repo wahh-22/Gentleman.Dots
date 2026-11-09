@@ -270,7 +270,9 @@ select_window() {
     printf '%s|%s' "$best" "$state"
   elif [ -n "$fallback" ]; then
     printf '%s' "$fallback"
-  elif load_candidate widget-cache "$window"; then
+  elif [ ! -f "$SNAPSHOT_FILE" ] && load_candidate widget-cache "$window"; then
+    # Last label only stands in before any direct read; a snapshot without the
+    # window means the provider does not report it.
     printf '%s||%s|old' "$CANDIDATE_REMAINING" "$CANDIDATE_AGE"
   else
     printf '|||missing'
@@ -279,8 +281,8 @@ select_window() {
 
 render_window() {
   local item="$1" window="$2" result="$3"
-  local value reset age state marker="" color label legacy_window
-  IFS='|' read -r value reset age state <<< "$result"
+  local value state marker="" color label legacy_window
+  IFS='|' read -r value _ _ state <<< "$result"
 
   if [ -z "$value" ]; then
     sketchybar --set "$item" icon.color="$ICON_COLOR" label="--!" label.color="$YELLOW" >/dev/null 2>&1 || true
@@ -302,8 +304,8 @@ render_window() {
 }
 
 detail_window() {
-  local value reset age state
-  IFS='|' read -r value reset age state <<< "$1"
+  local value reset
+  IFS='|' read -r value reset _ <<< "$1"
   if [ -z "$value" ]; then
     printf 'unavailable'
     return

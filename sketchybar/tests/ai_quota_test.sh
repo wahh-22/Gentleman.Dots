@@ -211,6 +211,7 @@ printf '{"tokens":{"access_token":"%s","account_id":"acct-123"}}' "$CODEX_TOKEN"
 cat > "$FIXTURES/openai.json" <<EOF
 {"rate_limit":{"primary_window":{"used_percent":20,"limit_window_seconds":604800,"reset_at":$((NOW + 86400))},"secondary_window":null}}
 EOF
+printf '0xffdbe9ff|82%%\n' > "$CACHE/ai_quota_openai_primary.state"
 run_plugin "$NOW" openai click
 assert_contains "$LOG_FILE" '--set openai_quota icon.color=0xffdbe9ff label=80%' "weekly-only OpenAI must fill the primary slot"
 assert_contains "$LOG_FILE" '--set openai_quota_separator drawing=off --set openai_quota_weekly drawing=off' "weekly-only OpenAI must collapse to one panel"
