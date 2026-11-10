@@ -156,6 +156,8 @@ assert_contains "$NETWORK_LOG" 'https://api.anthropic.com/api/oauth/usage?cedar_
 assert_contains "$NETWORK_LOG" 'header = "anthropic-beta: oauth-2025-04-20"' "Claude must send the OAuth beta header"
 assert_contains "$NETWORK_LOG" "header = \"Authorization: Bearer $CLAUDE_TOKEN\"" "token must travel through curl's stdin config"
 assert_contains "$NETWORK_LOG" '--proto =https --max-redirs 0' "requests must be HTTPS-only without redirects"
+grep '^ARGS' "$NETWORK_LOG" | grep -q '^ARGS --disable ' || fail "curl must ignore the user's curlrc (--disable first)"
+assert_contains "$NETWORK_LOG" '--retry 0' "curl must never retry"
 if grep '^ARGS' "$NETWORK_LOG" | grep -Fq "$CLAUDE_TOKEN"; then
   fail "token must never appear in process arguments"
 fi
@@ -185,6 +187,14 @@ run_plugin "$((NOW + 1700))" claude
 run_plugin "$((NOW + 5000))" claude
 assert_contains "$LOG_FILE" 'label=90%!' "over-60-minute data must be marked old"
 rm -f "$FIXTURES/claude.code"
+
+# A present but malformed window rejects the whole reply and keeps the snapshot.
+cp "$FIXTURES/claude.json" "$FIXTURES/claude.good"
+jq -c '.five_hour.utilization = null' "$FIXTURES/claude.good" > "$FIXTURES/claude.json"
+run_plugin "$((NOW + 5400))" claude click
+jq -e '.status == "invalid"' "$CACHE/ai_quota_claude.fetch" >/dev/null || fail "a malformed window must be recorded as invalid"
+jq -e --argjson at "$((NOW + 301))" '.fetched_at == $at and (.windows | has("five_hour"))' "$CACHE/ai_quota_claude.json" >/dev/null || fail "a malformed window must keep the previous snapshot"
+mv "$FIXTURES/claude.good" "$FIXTURES/claude.json"
 
 # Expired token: reported as auth, no request.
 printf '{"claudeAiOauth":{"accessToken":"%s","expiresAt":%s}}' "$CLAUDE_TOKEN" "$(((NOW + 6000) * 1000))" > "$FIXTURES/keychain.json"

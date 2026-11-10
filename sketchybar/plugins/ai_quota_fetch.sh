@@ -170,10 +170,11 @@ def epoch:
                  | ((.h | tonumber) * 3600 + (.m | tonumber) * 60) * (if .s == "+" then 1 else -1 end))
            end))
   else error("invalid date") end;
+# A window the provider sends must be valid; a malformed one rejects the reply.
 def window($used; $reset):
   if ($used | type) == "number" and $used >= 0 and $used <= 100
   then {used: $used, resets_at: ($reset | if . == null then null else epoch end)}
-  else empty end;
+  else error("invalid window") end;
 '
 
 NORMALIZE_OPENAI='
@@ -234,11 +235,12 @@ esac
 BODY_FILE="$(mktemp "$CACHE_DIR/ai_quota_${PROVIDER}.body.XXXXXX")" || exit 1
 
 # Secrets go through curl's stdin config, never through process arguments.
+# --disable (must be first) ignores ~/.curlrc so no trace or retry can apply.
 HTTP_CODE="$(
   {
     printf 'header = "Authorization: Bearer %s"\n' "$TOKEN"
     [ -n "$EXTRA_HEADER" ] && printf 'header = "%s"\n' "$EXTRA_HEADER"
-  } | "$CURL_BIN" --config - --silent --proto '=https' --max-redirs 0 \
+  } | "$CURL_BIN" --disable --config - --silent --retry 0 --proto '=https' --max-redirs 0 \
       --connect-timeout 10 --max-time 25 --max-filesize 262144 \
       --header 'Accept: application/json' --header 'User-Agent: QuotaShell/0.1' \
       --header 'Cache-Control: no-store' \
