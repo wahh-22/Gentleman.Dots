@@ -194,6 +194,19 @@ jq -c '.five_hour.utilization = null' "$FIXTURES/claude.good" > "$FIXTURES/claud
 run_plugin "$((NOW + 5400))" claude click
 jq -e '.status == "invalid"' "$CACHE/ai_quota_claude.fetch" >/dev/null || fail "a malformed window must be recorded as invalid"
 jq -e --argjson at "$((NOW + 301))" '.fetched_at == $at and (.windows | has("five_hour"))' "$CACHE/ai_quota_claude.json" >/dev/null || fail "a malformed window must keep the previous snapshot"
+jq -c '.five_hour = "broken"' "$FIXTURES/claude.good" > "$FIXTURES/claude.json"
+run_plugin "$((NOW + 5420))" claude click
+jq -e '.status == "invalid"' "$CACHE/ai_quota_claude.fetch" >/dev/null || fail "a non-object window must be recorded as invalid"
+jq -e --argjson at "$((NOW + 301))" '.fetched_at == $at and (.windows | has("five_hour"))' "$CACHE/ai_quota_claude.json" >/dev/null || fail "a non-object window must keep the previous snapshot"
+jq -c '.five_hour.resets_at = "broken"' "$FIXTURES/claude.good" > "$FIXTURES/claude.json"
+run_plugin "$((NOW + 5440))" claude click
+jq -e '.status == "invalid"' "$CACHE/ai_quota_claude.fetch" >/dev/null || fail "an unparsable reset must be recorded as invalid"
+jq -e --argjson at "$((NOW + 301))" '.fetched_at == $at' "$CACHE/ai_quota_claude.json" >/dev/null || fail "an unparsable reset must keep the previous snapshot"
+# An attempt recorded by a concurrent fetch slightly ahead must not be repeated.
+calls="$(network_calls)"
+jq -c --argjson at "$((NOW + 5465))" '.attempted_at = $at' "$CACHE/ai_quota_claude.fetch" > "$CACHE/fetch.tmp" && mv "$CACHE/fetch.tmp" "$CACHE/ai_quota_claude.fetch"
+run_plugin "$((NOW + 5460))" claude
+[ "$(network_calls)" -eq "$calls" ] || fail "a just-recorded concurrent attempt must suppress another fetch"
 mv "$FIXTURES/claude.good" "$FIXTURES/claude.json"
 
 # Expired token: reported as auth, no request.

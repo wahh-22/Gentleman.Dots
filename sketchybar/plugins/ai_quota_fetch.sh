@@ -86,7 +86,8 @@ fetch_due() {
     wait="$INTERVAL"
     [ "$status" = "rate_limit" ] && wait="$RATE_LIMIT_INTERVAL"
   fi
-  [ $((NOW - attempted)) -ge "$wait" ] || [ "$attempted" -gt "$NOW" ]
+  # An attempt more than a day ahead means the clock moved back; refetch.
+  [ $((NOW - attempted)) -ge "$wait" ] || [ "$attempted" -gt $((NOW + 86400)) ]
 }
 
 acquire_lock() {
@@ -163,7 +164,7 @@ NORMALIZE_LIB='
 def epoch:
   if type == "number" then (if . > 1000000000000 then (. / 1000) else . end | floor)
   elif type == "string" then
-    (capture("^(?<d>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})?$")
+    ((capture("^(?<d>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})?$") // error("invalid date"))
       | (.d + "Z" | fromdateiso8601)
         - (if (.z // "Z") == "Z" then 0
            else (.z | capture("(?<s>[+-])(?<h>[0-9]{2}):?(?<m>[0-9]{2})")
@@ -171,6 +172,9 @@ def epoch:
            end))
   else error("invalid date") end;
 # A window the provider sends must be valid; a malformed one rejects the reply.
+# Only an absent (null) window is skipped.
+def present:
+  if . == null then empty elif type == "object" then . else error("invalid window") end;
 def window($used; $reset):
   if ($used | type) == "number" and $used >= 0 and $used <= 100
   then {used: $used, resets_at: ($reset | if . == null then null else epoch end)}
@@ -178,15 +182,15 @@ def window($used; $reset):
 '
 
 NORMALIZE_OPENAI='
-[(.rate_limit.primary_window, .rate_limit.secondary_window) | objects
+[(.rate_limit.primary_window, .rate_limit.secondary_window) | present
   | ({"18000": "five_hour", "604800": "seven_day", "2592000": "monthly"}[(.limit_window_seconds // 0) | tostring]) as $key
   | select($key != null)
   | {key: $key, value: window(.used_percent; .reset_at)}]
 | from_entries'
 
 NORMALIZE_CLAUDE='
-[{key: "five_hour", value: (.five_hour | objects | window(.utilization; .resets_at))},
- {key: "seven_day", value: (.seven_day | objects | window(.utilization; .resets_at))}]
+[{key: "five_hour", value: (.five_hour | present | window(.utilization; .resets_at))},
+ {key: "seven_day", value: (.seven_day | present | window(.utilization; .resets_at))}]
 | from_entries'
 
 NORMALIZE_OPENCODE_GO='
@@ -197,7 +201,7 @@ def reset($now):
     end;
 .usage as $usage
 | [["rolling", "five_hour"], ["weekly", "seven_day"], ["monthly", "monthly"]]
-| map(. as [$source, $key] | $usage[$source] | objects | {key: $key, value: window(.percent; reset($now))})
+| map(. as [$source, $key] | $usage[$source] | present | {key: $key, value: window(.percent; reset($now))})
 | from_entries'
 
 normalize_reply() {
@@ -223,6 +227,11 @@ http_status_name() {
 fetch_due || exit 0
 acquire_lock || exit 0
 BODY_FILE=""
+# Recheck under the lock: a concurrent fetch may have just finished.
+if ! fetch_due; then
+  rmdir "$LOCK_DIR" 2>/dev/null
+  exit 0
+fi
 trap 'rm -f "$BODY_FILE"; rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
 load_credentials
